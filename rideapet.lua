@@ -862,9 +862,16 @@ end
 -- ═══ MULTI-SELECT POPUP ═══
 function A:OpenMulti(anchor, title, items, selected, onChange)
     self:ClosePopup()
-    local layer = self:Make("Frame", self.Bounds, {Size=UDim2.fromScale(1,1), BackgroundTransparency=1, ZIndex=50})
+    local layer = self:Make("Frame", self.Bounds, {
+        Size=UDim2.fromScale(1,1), BackgroundTransparency=1,
+        ZIndex=100, Active=true,
+    })
     self.Popup = layer
-    local back = self:Make("TextButton", layer, {Size=UDim2.fromScale(1,1), BackgroundTransparency=1, Text="", AutoButtonColor=false, ZIndex=1})
+
+    local back = self:Make("TextButton", layer, {
+        Size=UDim2.fromScale(1,1), BackgroundTransparency=1, Text="",
+        AutoButtonColor=false, ZIndex=1, Active=true,
+    })
     back.Activated:Connect(function() self:ClosePopup() end)
 
     local area = self.Bounds.AbsoluteSize
@@ -875,12 +882,17 @@ function A:OpenMulti(anchor, title, items, selected, onChange)
     local y = pos.Y + anchor.AbsoluteSize.Y + 4
     if y + h > area.Y - 8 then y = math.max(8, pos.Y - h - 4) end
 
-    local box = self:Make("Frame", layer, {Position=UDim2.fromOffset(x,y), Size=UDim2.fromOffset(w,h), BackgroundColor3=self.C.Surf, BorderSizePixel=0, ZIndex=2})
+    local box = self:Make("Frame", layer, {
+        Position=UDim2.fromOffset(x,y), Size=UDim2.fromOffset(w,h),
+        BackgroundColor3=self.C.Surf, BorderSizePixel=0,
+        ZIndex=10, Active=true,
+    })
     self:Corner(box, 10); self:Stroke(box, self.C.Stroke, 1, 0.1)
+
     local header = self:Make("TextLabel", box, {
         Size=UDim2.new(1,0,0,self.RowH), Text="  "..title, TextSize=13, Font=self.FB,
         TextColor3=self.C.Text, BackgroundColor3=self.C.Surf, BorderSizePixel=0,
-        TextXAlignment=Enum.TextXAlignment.Left,
+        TextXAlignment=Enum.TextXAlignment.Left, ZIndex=11,
     })
     self:Corner(header, 10)
 
@@ -890,21 +902,27 @@ function A:OpenMulti(anchor, title, items, selected, onChange)
         search = self:Make("TextBox", box, {
             Position=UDim2.fromOffset(8,top), Size=UDim2.new(1,-16,0,self.RowH),
             Text="", PlaceholderText="  Search...", ClearTextOnFocus=false,
-            TextSize=13, Font=self.F, TextColor3=self.C.Text, PlaceholderColor3=self.C.Mute,
-            BackgroundColor3=self.C.Card, BorderSizePixel=0,
+            TextSize=13, Font=self.F, TextColor3=self.C.Text,
+            PlaceholderColor3=self.C.Mute, BackgroundColor3=self.C.Card,
+            BorderSizePixel=0, ZIndex=11,
         })
         self:Corner(search, 8); self:Stroke(search, self.C.Soft, 1, 0.4)
         top = top + self.RowH + 6
     end
 
     local list = self:Make("ScrollingFrame", box, {
-        Position=UDim2.fromOffset(8, top), Size=UDim2.new(1,-16,1,-top-self.RowH-12),
+        Position=UDim2.fromOffset(8, top),
+        Size=UDim2.new(1,-16,1,-top-self.RowH-12),
         BackgroundTransparency=1, BorderSizePixel=0,
-        CanvasSize=UDim2.fromOffset(0,0), AutomaticCanvasSize=Enum.AutomaticSize.Y,
-        ScrollingDirection=Enum.ScrollingDirection.Y, ScrollBarThickness=3,
-        ScrollBarImageColor3=self.C.Stroke,
+        CanvasSize=UDim2.fromOffset(0,0),
+        AutomaticCanvasSize=Enum.AutomaticSize.Y,
+        ScrollingDirection=Enum.ScrollingDirection.Y,
+        ScrollBarThickness=3, ScrollBarImageColor3=self.C.Stroke,
+        ZIndex=11, Active=true,
     })
-    self:Make("UIListLayout", list, {Padding=UDim.new(0,3), SortOrder=Enum.SortOrder.LayoutOrder})
+    self:Make("UIListLayout", list, {
+        Padding=UDim.new(0,3), SortOrder=Enum.SortOrder.LayoutOrder,
+    })
 
     local rows = {}
     for i, item in ipairs(items) do
@@ -913,6 +931,7 @@ function A:OpenMulti(anchor, title, items, selected, onChange)
             BorderSizePixel=0, Text="  "..item, Font=self.F, TextSize=13,
             TextColor3=self.C.Text, TextXAlignment=Enum.TextXAlignment.Left,
             AutoButtonColor=false, LayoutOrder=i,
+            ZIndex=12, Active=true, Selectable=true,
         })
         self:Corner(b, 6)
         local function paint()
@@ -921,10 +940,20 @@ function A:OpenMulti(anchor, title, items, selected, onChange)
             b.Text = (on and "  ✓ " or "     ")..item
         end
         paint()
-        b.Activated:Connect(function()
+
+        -- Debounce: Activated + TouchTap can sometimes double-fire
+        local lastFire = 0
+        local function toggle()
+            if not A.Alive then return end
+            local now = os.clock()
+            if now - lastFire < 0.15 then return end
+            lastFire = now
             selected[item] = not selected[item]
-            paint(); onChange()
-        end)
+            paint()
+            onChange()
+        end
+        b.Activated:Connect(toggle)
+
         rows[#rows+1] = {Button=b, Name=string.lower(item), Paint=paint}
     end
 
@@ -945,6 +974,7 @@ function A:OpenMulti(anchor, title, items, selected, onChange)
             TextColor3=acc and Color3.new(1,1,1) or self.C.Text,
             BackgroundColor3=acc and self.C.Acc or self.C.Card,
             BorderSizePixel=0, AutoButtonColor=false,
+            ZIndex=12, Active=true,
         })
         self:Corner(b, 8); b.Activated:Connect(cb)
     end
